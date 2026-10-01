@@ -1,0 +1,7 @@
+torch>=2.1
+numpy
+pandas
+pyyaml
+pytest
+# later modules:
+# torch-pruning   # M2 pruned baseline (physical removal)

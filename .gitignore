@@ -1,0 +1,17 @@
+# data and run outputs are never committed
+data/raw/
+data/processed/*.pt
+outputs/*
+!outputs/.gitkeep
+
+# python
+__pycache__/
+*.pyc
+.pytest_cache/
+.venv/
+*.egg-info/
+
+# os / editors
+.DS_Store
+.idea/
+.vscode/

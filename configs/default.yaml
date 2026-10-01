@@ -1,0 +1,35 @@
+# Single source of truth for all modules. No hardcoded values elsewhere.
+# Paths are relative to the repo root.
+
+seed: 0
+
+paths:
+  raw: data/raw                 # downloaded SoccerTrack v2 (gsr/ + bas/), never committed
+  processed: data/processed     # {train,val,test}.pt in the Core data contract
+  outputs: outputs              # checkpoints, logits, flops.json, thresholds.json
+  results_csv: outputs/results.csv
+
+data:
+  fps: 25                       # M1: verify against the raw dataset and correct if needed
+  window_seconds: 0.5           # M1 may switch to 1.0 after checking class balance
+  stride_seconds: 0.5           # non-overlapping windows by default
+  max_people: 23                # P in the data contract: 22 players + 1 referee slot; pad/mask the rest
+  num_classes: 2                # 0 = no action, 1 = action
+  event_tolerance_frames: 0     # M1: tolerance for events at window edges
+  splits:                       # official SoccerTrack v2 match split
+    train: [M1, M3, M4, M5, M6, M8]
+    val:   [M2, M10]
+    test:  [M7, M9]
+
+model:
+  num_exits: 4                  # exits on the early-exit model (M3); baselines have 1
+  hidden: 64                    # width used by the dummy model and as a default for M2/M3
+
+budget:
+  levels: [100, 50, 20]         # battery levels the controller (M5) maps to exit thresholds
+
+mock:                           # sizes for the mock data generator (core.mock)
+  n_train: 512
+  n_val: 128
+  n_test: 128
+  positive_fraction: 0.17       # ~1/6 positive, matching the expected imbalance at 0.5 s
