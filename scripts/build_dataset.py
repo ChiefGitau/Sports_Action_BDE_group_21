@@ -233,9 +233,16 @@ class StableSlotAllocator:
         """
         Return track_id -> tensor slot for one team
         in the current frame.
+
+        SoccerTrack can briefly contain more than 11 annotations for one
+        team during substitutions. When that happens, preserve players
+        that already own stable slots and temporarily ignore newly
+        appearing overflow tracks until a slot becomes free.
         """
 
         allowed_slots = self.team_slots[team]
+        max_tracks = len(allowed_slots)
+        mapping = self.track_to_slot[team]
 
         # Deduplicate by track_id just in case.
         current_tracks = {
@@ -243,14 +250,72 @@ class StableSlotAllocator:
             for record in records
         }
 
-        if len(current_tracks) > len(allowed_slots):
-            raise RuntimeError(
-                f"Frame {frame}: team {team} has "
-                f"{len(current_tracks)} tracks but only "
-                f"{len(allowed_slots)} available slots"
+        def track_sort_key(track_id: str):
+            """Sort numeric track IDs numerically when possible."""
+            try:
+                return (0, int(track_id))
+            except ValueError:
+                return (1, track_id)
+
+        # ----------------------------------------------------
+        # Handle temporary substitution overlap.
+        # ----------------------------------------------------
+        #
+        # Some SoccerTrack frames contain >11 annotations for a team
+        # because incoming players start being annotated before outgoing
+        # players disappear. The model contract still has only 11 slots
+        # per team, so continuity takes priority:
+        #
+        #   1. keep already-mapped tracks;
+        #   2. fill any remaining slots with new tracks;
+        #   3. temporarily ignore additional new overflow tracks.
+        #
+        # Ignored tracks are not deleted from the source data. They are
+        # simply omitted from this frame and can receive a slot later.
+        if len(current_tracks) > max_tracks:
+
+            established_tracks = sorted(
+                (
+                    track_id
+                    for track_id in current_tracks
+                    if track_id in mapping
+                ),
+                key=lambda track_id: mapping[track_id],
             )
 
-        mapping = self.track_to_slot[team]
+            new_tracks = sorted(
+                (
+                    track_id
+                    for track_id in current_tracks
+                    if track_id not in mapping
+                ),
+                key=track_sort_key,
+            )
+
+            selected_tracks = established_tracks[:max_tracks]
+
+            remaining = max_tracks - len(selected_tracks)
+
+            if remaining > 0:
+                selected_tracks.extend(
+                    new_tracks[:remaining]
+                )
+
+            selected_set = set(selected_tracks)
+
+            dropped_tracks = sorted(
+                current_tracks - selected_set,
+                key=track_sort_key,
+            )
+
+            print(
+                f"Frame {frame}: team {team} has "
+                f"{len(current_tracks)} tracks; keeping "
+                f"{len(selected_set)} and temporarily ignoring "
+                f"overflow tracks {dropped_tracks}"
+            )
+
+            current_tracks = selected_set
 
         result = {}
 
@@ -258,14 +323,21 @@ class StableSlotAllocator:
         # First preserve players that already have slots.
         # ----------------------------------------------------
 
-        for track_id in sorted(current_tracks):
+        established_tracks = sorted(
+            (
+                track_id
+                for track_id in current_tracks
+                if track_id in mapping
+            ),
+            key=lambda track_id: mapping[track_id],
+        )
 
-            if track_id in mapping:
+        for track_id in established_tracks:
 
-                slot = mapping[track_id]
+            slot = mapping[track_id]
 
-                result[track_id] = slot
-                self.last_seen[track_id] = frame
+            result[track_id] = slot
+            self.last_seen[track_id] = frame
 
         # Slots already required by currently-present tracks.
         active_slots = set(result.values())
@@ -275,9 +347,12 @@ class StableSlotAllocator:
         # ----------------------------------------------------
 
         new_tracks = sorted(
-            track_id
-            for track_id in current_tracks
-            if track_id not in mapping
+            (
+                track_id
+                for track_id in current_tracks
+                if track_id not in mapping
+            ),
+            key=track_sort_key,
         )
 
         for track_id in new_tracks:
@@ -331,7 +406,6 @@ class StableSlotAllocator:
             active_slots.add(slot)
 
         return result
-
 
 # ============================================================
 # FRAME -> WINDOW LOOKUP
@@ -450,7 +524,12 @@ def process_frame(
 
             track_id = str(record["track_id"])
 
-            slot = slot_maps[team][track_id]
+            # A track may be temporarily omitted during SoccerTrack's
+            # substitution-overlap frames when a team has >11 annotations.
+            slot = slot_maps[team].get(track_id)
+
+            if slot is None:
+                continue
 
             pitch = record.get("bbox_pitch") or {}
 
