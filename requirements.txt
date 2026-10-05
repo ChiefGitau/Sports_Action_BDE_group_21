@@ -5,3 +5,5 @@ pyyaml
 pytest
 # later modules:
 # torch-pruning   # M2 pruned baseline (physical removal)
+ijson>=3.3
+
