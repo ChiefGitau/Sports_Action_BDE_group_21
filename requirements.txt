@@ -4,6 +4,6 @@ pandas
 pyyaml
 pytest
 # later modules:
-# torch-pruning   # M2 pruned baseline (physical removal)
+torch-pruning>=1.5   # M2 pruned baseline (physical removal)
 ijson>=3.3
-
+huggingface_hub>=0.34,<1.0   # M1: 'hf download' in scripts/process_match.py

@@ -43,12 +43,14 @@ def download_file(
         print("Already downloaded:", expected_path)
         return
 
-    hf_executable = shutil.which("hf")
+    # 'hf' ships with huggingface_hub >= 0.34; older installs only
+    # have 'huggingface-cli', which accepts the same arguments.
+    hf_executable = shutil.which("hf") or shutil.which("huggingface-cli")
 
     if hf_executable is None:
         raise RuntimeError(
-            "The 'hf' command was not found. "
-            "Activate the project virtual environment first."
+            "Neither 'hf' nor 'huggingface-cli' was found. "
+            "Run: pip install -r requirements.txt"
         )
 
     local_root.mkdir(parents=True, exist_ok=True)
@@ -161,7 +163,10 @@ def combine_halves(
 def process_match(match_id: str) -> None:
     """Download, build, and combine one complete SoccerTrack match."""
 
-    match_raw_root = RAW_ROOT / match_id
+    # Download straight into data/raw so files land at
+    # data/raw/{gsr,bas}/<match_id>/..., the same layout the
+    # Hugging Face CLI produces with --local-dir data/raw.
+    match_raw_root = RAW_ROOT
 
     bas_repo_file = (
         f"bas/{match_id}/{match_id}_12_class_events.json"

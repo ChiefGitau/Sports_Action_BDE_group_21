@@ -24,6 +24,34 @@ data:
 model:
   num_exits: 4                  # exits on the early-exit model (M3); baselines have 1
   hidden: 64                    # width used by the dummy model and as a default for M2/M3
+  # Shared temporal 1D-CNN trunk used by M2 (baselines) and M3 (early-exit). Per frame the
+  # P people are flattened to features (x, y, present) -> 1x1 conv embed -> conv blocks over T.
+  channels: 64                  # trunk width
+  kernel_size: 3                # temporal kernel of each conv block
+  num_blocks: 4                 # conv blocks in the trunk
+  dropout: 0.1
+  exit_after: [1, 2, 3, 4]      # M3: trunk blocks after which an exit head sits (last must be num_blocks)
+  head_pool: mean               # exit head = pool over frames + one Linear (keep heads light)
+
+train:                          # M2/M3 training loop (models/train.py)
+  epochs: 30
+  batch_size: 64
+  lr: 0.001
+  weight_decay: 0.0001
+  class_weight: balanced        # 'balanced' (inverse-frequency CE weights) or 'none'
+  select_metric: bal_acc        # validation metric used to pick the best epoch (final exit)
+  patience: 8                   # early stopping on select_metric; 0 disables
+  device: auto                  # 'auto' | 'cpu' | 'cuda' | 'mps'
+
+early_exit:                     # M3 joint training + knowledge distillation
+  exit_loss_weights: [0.25, 0.25, 0.25, 1.0]   # one per exit; final exit always carries full weight
+  kd: true                      # distil early exits from the final head's soft outputs
+  kd_alpha: 0.5                 # weight of the KD term on each early exit (vs. hard-label CE)
+  kd_temperature: 2.0
+
+prune:                          # M2 pruned baseline (physical removal via Torch-Pruning)
+  ratio: 0.5                    # fraction of trunk channels removed (0.5 = half-width)
+  finetune_epochs: 15
 
 budget:
   levels: [100, 50, 20]         # battery levels the controller (M5) maps to exit thresholds
