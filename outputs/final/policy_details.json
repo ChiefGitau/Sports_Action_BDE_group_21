@@ -1,0 +1,122 @@
+{
+  "fp32_100": {
+    "thresholds": [
+      0.52,
+      0.52,
+      0.52,
+      0.0
+    ],
+    "target_flops": 1286656.0,
+    "mean_test_flops": 472046.078542971,
+    "compute_fraction_of_full": 0.36687823205501,
+    "exit_counts": [
+      19480,
+      2196,
+      205,
+      960
+    ],
+    "architecturally_feasible": true,
+    "threshold_source": "validation",
+    "evaluation_split": "test"
+  },
+  "fp32_50": {
+    "thresholds": [
+      0.52,
+      0.52,
+      0.52,
+      0.0
+    ],
+    "target_flops": 643328.0,
+    "mean_test_flops": 472046.078542971,
+    "compute_fraction_of_full": 0.36687823205501,
+    "exit_counts": [
+      19480,
+      2196,
+      205,
+      960
+    ],
+    "architecturally_feasible": true,
+    "threshold_source": "validation",
+    "evaluation_split": "test"
+  },
+  "fp32_20": {
+    "thresholds": [
+      0.0,
+      0.0,
+      0.0,
+      0.0
+    ],
+    "target_flops": 257331.2,
+    "mean_test_flops": 401152.0,
+    "compute_fraction_of_full": 0.31177875049741344,
+    "exit_counts": [
+      22841,
+      0,
+      0,
+      0
+    ],
+    "architecturally_feasible": false,
+    "threshold_source": "validation",
+    "evaluation_split": "test"
+  },
+  "int8_100": {
+    "thresholds": [
+      0.53,
+      0.53,
+      0.53,
+      0.0
+    ],
+    "target_flops": 1286656.0,
+    "mean_test_flops": 529926.9713234972,
+    "compute_fraction_of_full": 0.4118637548214109,
+    "exit_counts": [
+      17493,
+      2886,
+      307,
+      2155
+    ],
+    "architecturally_feasible": true,
+    "threshold_source": "validation",
+    "evaluation_split": "test"
+  },
+  "int8_50": {
+    "thresholds": [
+      0.53,
+      0.53,
+      0.53,
+      0.0
+    ],
+    "target_flops": 643328.0,
+    "mean_test_flops": 529926.9713234972,
+    "compute_fraction_of_full": 0.4118637548214109,
+    "exit_counts": [
+      17493,
+      2886,
+      307,
+      2155
+    ],
+    "architecturally_feasible": true,
+    "threshold_source": "validation",
+    "evaluation_split": "test"
+  },
+  "int8_20": {
+    "thresholds": [
+      0.0,
+      0.0,
+      0.0,
+      0.0
+    ],
+    "target_flops": 257331.2,
+    "mean_test_flops": 401152.0,
+    "compute_fraction_of_full": 0.31177875049741344,
+    "exit_counts": [
+      22841,
+      0,
+      0,
+      0
+    ],
+    "architecturally_feasible": false,
+    "threshold_source": "validation",
+    "evaluation_split": "test"
+  }
+}

@@ -1,4 +1,4 @@
-# data and run outputs are never committed
+# generated data and non-canonical run outputs are ignored; canonical final artifacts are force-tracked
 data/raw/
 data/processed/*.pt
 outputs/*

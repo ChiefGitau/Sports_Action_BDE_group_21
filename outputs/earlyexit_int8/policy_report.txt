@@ -1,0 +1,17 @@
+M5 VALIDATION THRESHOLD TUNING REPORT
+======================================================================
+
+confidence method: max_softmax
+temperature: 1.0
+validation samples: 22927
+exits: 4
+FLOPs per exit: [401152, 696320, 991488, 1286656]
+
+Budget 100% | target <= 1,286,656 FLOPs | achieved 509,798 (39.6% of full) | bal_acc=0.5540 | f1=0.3380 | acc=0.4619 | exits=[18436, 2405, 224, 1862] | within target
+thresholds: [0.53, 0.53, 0.53, 0.0]
+
+Budget 50% | target <= 643,328 FLOPs | achieved 509,798 (39.6% of full) | bal_acc=0.5540 | f1=0.3380 | acc=0.4619 | exits=[18436, 2405, 224, 1862] | within target
+thresholds: [0.53, 0.53, 0.53, 0.0]
+
+Budget 20% | target <= 257,331 FLOPs | achieved 401,152 (31.2% of full) | bal_acc=0.5528 | f1=0.3346 | acc=0.4832 | exits=[22927, 0, 0, 0] | target unattainable
+thresholds: [0.0, 0.0, 0.0, 0.0]

@@ -1,0 +1,2 @@
+model,variant,budget,split,flops_mean,acc,bal_acc,f1,size_mb,latency_ms
+cnn_pruned,fp32+pruned,static,test,348032.0,0.3800621689067904,0.5530366271691975,0.3364573570759138,0.071235,
