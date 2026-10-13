@@ -1,0 +1,11 @@
+{
+  "tool": "torch.utils.flop_counter.FlopCounterMode",
+  "flops_per_exit": [
+    1670656,
+    2899712,
+    4128768,
+    5357824
+  ],
+  "params": 54920,
+  "size_mb": 0.233636
+}

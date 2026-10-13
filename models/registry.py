@@ -30,6 +30,8 @@ def arch_from_config(cfg: AttrDict, kind: str, **overrides) -> dict:
         num_blocks=m.num_blocks,
         dropout=m.dropout,
         head_pool=m.head_pool,
+        features=str(m.get("features", "pos")),
+        fps=float(cfg.data.fps),
     )
     if kind == "early_exit":
         arch["exit_after"] = list(m.exit_after)

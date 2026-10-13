@@ -46,10 +46,32 @@ class PoolHead(nn.Module):
         return self.fc(p)
 
 
-def featurize(x: Tensor, mask: Tensor) -> Tensor:
-    """[N, T, P, 2] + [N, T, P] -> [N, 3P, T] with a presence bit per person."""
-    x = x * mask.unsqueeze(-1)
-    feats = torch.cat([x, mask.unsqueeze(-1).to(x.dtype)], dim=-1)   # [N, T, P, 3]
+FEATURES_PER_PERSON = {"pos": 3, "pos+vel": 5, "vel": 3}
+
+
+def featurize(x: Tensor, mask: Tensor, features: str = "pos", fps: float = 25.0) -> Tensor:
+    """[N, T, P, 2] + [N, T, P] -> [N, F*P, T], always with a presence bit per person.
+
+        pos      (x, y, present)                    F = 3
+        pos+vel  (x, y, vx, vy, present)            F = 5
+        vel      (vx, vy, present)                  F = 3   positions dropped entirely
+
+    Velocities are per-frame displacements in pitch units per second. They are what players
+    are *doing*; absolute positions depend on pitch orientation, camera and which end a team
+    defends, and change meaning between halves and matches."""
+    if features not in FEATURES_PER_PERSON:
+        raise ValueError(f"features must be one of {sorted(FEATURES_PER_PERSON)}, got {features!r}")
+    m = mask.unsqueeze(-1).to(x.dtype)
+    x = x * m
+    parts = []
+    if features in ("pos", "pos+vel"):
+        parts.append(x)
+    if features in ("pos+vel", "vel"):
+        v = torch.zeros_like(x)
+        v[:, 1:] = (x[:, 1:] - x[:, :-1]) * fps * (m[:, 1:] * m[:, :-1])
+        parts.append(v)
+    parts.append(m)
+    feats = torch.cat(parts, dim=-1)                                   # [N, T, P, F]
     return feats.flatten(2).transpose(1, 2).contiguous()
 
 
@@ -64,15 +86,18 @@ class ExitCNN(ExitModel):
         dropout: float = 0.1,
         exit_after: tuple[int, ...] | list[int] = (1, 2, 3, 4),
         head_pool: str = "mean",
+        features: str = "pos",
+        fps: float = 25.0,
     ):
         super().__init__()
+        self.features, self.fps = str(features), float(fps)
         exit_after = sorted(int(e) for e in exit_after)
         if not exit_after or len(set(exit_after)) != len(exit_after):
             raise ValueError("exit_after must be a non-empty list of distinct block indices")
         if exit_after[0] < 1 or exit_after[-1] != num_blocks:
             raise ValueError(f"exit_after must lie in [1, num_blocks] and end at num_blocks={num_blocks}")
         self.exit_after = exit_after
-        self.embed = nn.Conv1d(max_people * 3, channels, kernel_size=1)
+        self.embed = nn.Conv1d(max_people * FEATURES_PER_PERSON[self.features], channels, kernel_size=1)
         self.blocks = nn.ModuleList(
             [ConvBlock(channels, channels, kernel_size, dropout) for _ in range(num_blocks)]
         )
@@ -85,7 +110,7 @@ class ExitCNN(ExitModel):
         return len(self.exit_after)
 
     def forward(self, x: Tensor, mask: Tensor) -> list[Tensor]:
-        h = self.embed(featurize(x, mask))
+        h = self.embed(featurize(x, mask, self.features, self.fps))
         outs: list[Tensor] = []
         head = 0
         for i, block in enumerate(self.blocks, start=1):
@@ -104,7 +129,7 @@ class ExitCNN(ExitModel):
         torch's FLOP counter does not count the softmax itself, only the Linear heads.
         """
         self._check_exit(exit_idx)
-        h = self.embed(featurize(x, mask))
+        h = self.embed(featurize(x, mask, self.features, self.fps))
         head = 0
         for i, block in enumerate(self.blocks[: self.exit_after[exit_idx]], start=1):
             h = block(h)
