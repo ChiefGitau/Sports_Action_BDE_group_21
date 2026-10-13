@@ -14,7 +14,7 @@ from compression.quantization import (
     quantized_module_names,
     select_calibration_indices,
 )
-from core.artifacts import ResultRow, append_result
+from core.artifacts import ResultRow, append_result, save_logits
 from core.data import load_split
 from core.flops import flops_per_exit
 from core.metrics import compute_metrics
@@ -97,6 +97,54 @@ def final_exit_logits(
 
     return torch.cat(chunks, dim=0)
 
+
+
+def all_exit_logits(
+    model: nn.Module,
+    X: Tensor,
+    mask: Tensor,
+    batch_size: int,
+    quantized: bool,
+) -> Tensor:
+    """Collect logits from every exit as [E, N, C]."""
+    model.eval()
+    per_exit: list[list[Tensor]] | None = None
+
+    with torch.no_grad():
+        for start in range(0, len(X), batch_size):
+            xb = X[start : start + batch_size].cpu().float()
+            mb = mask[start : start + batch_size].cpu()
+
+            # The quantized FX graph expects the original boolean mask
+            # represented as equivalent floating-point 0/1 values.
+            if quantized:
+                mb = mb.to(dtype=xb.dtype)
+
+            outputs = model(xb, mb)
+
+            if not isinstance(outputs, (list, tuple)) or len(outputs) == 0:
+                raise RuntimeError(
+                    "Expected model.forward() to return one tensor per exit."
+                )
+
+            if per_exit is None:
+                per_exit = [[] for _ in outputs]
+
+            if len(outputs) != len(per_exit):
+                raise RuntimeError(
+                    "Number of model exits changed between batches."
+                )
+
+            for exit_idx, output in enumerate(outputs):
+                per_exit[exit_idx].append(output.detach().cpu())
+
+    if per_exit is None:
+        raise RuntimeError("Cannot collect logits from an empty dataset.")
+
+    return torch.stack(
+        [torch.cat(chunks, dim=0) for chunks in per_exit],
+        dim=0,
+    )
 
 def evaluate(
     model: nn.Module,
@@ -311,18 +359,77 @@ def main() -> None:
 
     int8_size = state_dict_size_mb(int8_model)
 
+    # Save logits from every INT8 exit. M5 needs these because confidence
+    # thresholds must be retuned after quantization.
+    logits_output = output_dir / f"logits_{eval_path.stem}.pt"
+
+    print(f"\nSaving INT8 logits: {logits_output}")
+
+    int8_logits = all_exit_logits(
+        int8_model,
+        X_eval,
+        mask_eval,
+        batch_size=args.batch_size,
+        quantized=True,
+    )
+
+    save_logits(
+        logits_output,
+        int8_logits,
+        y_eval,
+    )
+
+    # Saving an FX GraphModule directly with torch.save() is not reliably
+    # reloadable. Export the quantized model as TorchScript instead.
     checkpoint_output = output_dir / "earlyexit_int8.pt"
 
-    print(f"\nSaving INT8 checkpoint: {checkpoint_output}")
+    print(f"Saving reloadable INT8 TorchScript checkpoint: {checkpoint_output}")
+
+    example_x = X_eval[:1].cpu().float()
+    example_mask = mask_eval[:1].cpu().to(dtype=example_x.dtype)
+
+    traced_int8 = torch.jit.trace(
+        int8_model,
+        (example_x, example_mask),
+        strict=False,
+    )
+
+    torch.jit.save(
+        traced_int8,
+        str(checkpoint_output),
+    )
+
+    # Immediately reload and execute it. This makes serialization failure
+    # visible during M6 instead of later during evaluation/deployment.
+    reloaded_int8 = torch.jit.load(
+        str(checkpoint_output),
+        map_location="cpu",
+    )
+    reloaded_int8.eval()
+
+    with torch.no_grad():
+        reload_outputs = reloaded_int8(
+            example_x,
+            example_mask,
+        )
+
+    if len(reload_outputs) != int(int8_logits.shape[0]):
+        raise RuntimeError(
+            "Reloaded INT8 checkpoint returned an unexpected number of exits."
+        )
+
+    print("TorchScript reload check: OK")
+
+    # Store lightweight metadata separately from the executable checkpoint.
     torch.save(
         {
-            "model": int8_model,
             "variant": "int8",
             "backend": args.backend,
             "calibration_windows": len(calibration_indices),
             "calibration_action_windows": calibration_actions,
+            "checkpoint_format": "torchscript",
         },
-        checkpoint_output,
+        output_dir / "quantization_metadata.pt",
     )
 
     split_name = eval_path.stem
