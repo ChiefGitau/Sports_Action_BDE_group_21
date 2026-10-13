@@ -1,0 +1,22 @@
+M6 INT8 QUANTIZATION REPORT
+========================================================================
+dummy_mode: False
+evaluation_split: val
+backend: onednn
+calibration_windows: 256
+calibration_action_windows: 64
+
+FP32
+  acc: 0.447725
+  bal_acc: 0.551423
+  f1: 0.337346
+  size_mb: 0.233905
+
+INT8
+  acc: 0.446417
+  bal_acc: 0.552137
+  f1: 0.338062
+  size_mb: 0.080355
+
+size_reduction_percent: 65.65
+quantized_modules: 17

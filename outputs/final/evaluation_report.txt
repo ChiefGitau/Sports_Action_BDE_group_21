@@ -1,0 +1,43 @@
+M7 FINAL EVALUATION REPORT
+========================================================================
+
+Canonical test windows: 22841
+
+Methodological rule:
+  Policy thresholds were selected on validation data in M5.
+  M7 applies those fixed thresholds to test data without retuning.
+
+FINAL TEST RESULTS
+------------------------------------------------------------------------
+cnn_full     fp32               budget=static FLOPs=   1285888 acc=0.5202 bal_acc=0.5392 f1=0.3099 size=0.2305 MB
+cnn_pruned   fp32+pruned        budget=static FLOPs=    348032 acc=0.3801 bal_acc=0.5530 f1=0.3365 size=0.0712 MB
+earlyexit    fp32/final_exit    budget=static FLOPs=   1286656 acc=0.4270 bal_acc=0.5493 f1=0.3299 size=0.2339 MB
+earlyexit    int8/final_exit    budget=static FLOPs=   1286656 acc=0.4258 bal_acc=0.5483 f1=0.3293 size=0.0804 MB
+earlyexit    fp32/adaptive      budget=100    FLOPs=    472046 acc=0.4540 bal_acc=0.5483 f1=0.3265 size=0.2339 MB
+earlyexit    fp32/adaptive      budget=50     FLOPs=    472046 acc=0.4540 bal_acc=0.5483 f1=0.3265 size=0.2339 MB
+earlyexit    fp32/adaptive      budget=20     FLOPs=    401152 acc=0.4689 bal_acc=0.5498 f1=0.3262 size=0.2339 MB
+earlyexit    int8/adaptive      budget=100    FLOPs=    529927 acc=0.4442 bal_acc=0.5480 f1=0.3273 size=0.0804 MB
+earlyexit    int8/adaptive      budget=50     FLOPs=    529927 acc=0.4442 bal_acc=0.5480 f1=0.3273 size=0.0804 MB
+earlyexit    int8/adaptive      budget=20     FLOPs=    401152 acc=0.4673 bal_acc=0.5493 f1=0.3260 size=0.0804 MB
+
+ADAPTIVE POLICY DETAILS
+------------------------------------------------------------------------
+fp32_100: thresholds=[0.52, 0.52, 0.52, 0.0] mean_flops=472046 fraction=36.7% exit_counts=[19480, 2196, 205, 960] architecture_feasible=True
+fp32_50: thresholds=[0.52, 0.52, 0.52, 0.0] mean_flops=472046 fraction=36.7% exit_counts=[19480, 2196, 205, 960] architecture_feasible=True
+fp32_20: thresholds=[0.0, 0.0, 0.0, 0.0] mean_flops=401152 fraction=31.2% exit_counts=[22841, 0, 0, 0] architecture_feasible=False
+int8_100: thresholds=[0.53, 0.53, 0.53, 0.0] mean_flops=529927 fraction=41.2% exit_counts=[17493, 2886, 307, 2155] architecture_feasible=True
+int8_50: thresholds=[0.53, 0.53, 0.53, 0.0] mean_flops=529927 fraction=41.2% exit_counts=[17493, 2886, 307, 2155] architecture_feasible=True
+int8_20: thresholds=[0.0, 0.0, 0.0, 0.0] mean_flops=401152 fraction=31.2% exit_counts=[22841, 0, 0, 0] architecture_feasible=False
+
+PARETO FRONT (balanced accuracy vs FLOPs)
+------------------------------------------------------------------------
+cnn_pruned / fp32+pruned / static: 348032 FLOPs, bal_acc=0.5530
+
+BUDGET NOTE
+------------------------------------------------------------------------
+The first early exit costs 401152 FLOPs, which is 31.2% of full-model compute.
+Therefore a true 20% early-exit compute budget is architecturally impossible for this network.
+
+INT8 NOTE
+------------------------------------------------------------------------
+INT8 uses separately validation-tuned confidence thresholds. The quantized model is not evaluated with FP32 thresholds.
