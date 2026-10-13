@@ -7,6 +7,7 @@ import time
 from pathlib import Path
 
 import torch
+import models
 
 from core.config import load_config
 from core.data import load_split
@@ -235,20 +236,33 @@ def main() -> None:
     print("sample X:", tuple(x.shape))
     print("sample mask:", tuple(mask.shape))
 
-    model = DummyExitModel(
-        max_people=cfg.data.max_people,
-        num_classes=cfg.data.num_classes,
-        num_exits=cfg.model.num_exits,
-        hidden=cfg.model.hidden,
-    )
+    # Without a checkpoint, keep the lightweight dummy model so M4 can
+    # still be tested independently of the trained M3 model.
+    if args.checkpoint is None:
+        model = DummyExitModel(
+            max_people=cfg.data.max_people,
+            num_classes=cfg.data.num_classes,
+            num_exits=cfg.model.num_exits,
+            hidden=cfg.model.hidden,
+        )
+        print("No checkpoint supplied: using DummyExitModel.")
 
-    if args.checkpoint is not None:
+    # A real M3 checkpoint stores its architecture together with its
+    # state_dict. Reconstruct that architecture using the shared loader.
+    else:
         if not args.checkpoint.exists():
             raise FileNotFoundError(
                 f"Checkpoint not found: {args.checkpoint}"
             )
 
-        load_checkpoint(model, args.checkpoint)
+        model, checkpoint_meta = models.load_checkpoint(args.checkpoint)
+
+        print(f"Loaded checkpoint: {args.checkpoint}")
+        print(
+            "Loaded model:",
+            type(model).__name__,
+            f"variant={checkpoint_meta.get('variant', 'unknown')}",
+        )
 
     model.eval()
 
