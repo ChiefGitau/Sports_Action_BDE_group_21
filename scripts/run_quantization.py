@@ -5,6 +5,7 @@ import io
 from pathlib import Path
 
 import torch
+import models
 from torch import Tensor, nn
 
 from compression.quantization import (
@@ -39,16 +40,7 @@ def load_model(
     max_people: int,
     num_classes: int,
 ) -> tuple[nn.Module, bool]:
-    """
-    Return (model, is_dummy).
-
-    Until M3 is integrated, running without --checkpoint uses the Core
-    DummyExitModel only for an M6 smoke test.
-
-    If the M3 checkpoint contains a complete nn.Module, this script can use
-    it directly. If M3 supplies only a state_dict, its exact architecture
-    constructor must be connected here after M3 is merged.
-    """
+    """Return the model and whether this is only a dummy smoke-test run."""
     if checkpoint is None:
         model = DummyExitModel(
             max_people=max_people,
@@ -57,23 +49,20 @@ def load_model(
         )
         return model.eval(), True
 
-    obj = load_checkpoint_object(checkpoint)
+    if not checkpoint.exists():
+        raise FileNotFoundError(f"Checkpoint not found: {checkpoint}")
 
-    if isinstance(obj, nn.Module):
-        return obj.cpu().eval(), False
+    # M3 checkpoints store the architecture and state_dict together.
+    # Reconstruct the trained EarlyExitCNN using the shared project loader.
+    model, meta = models.load_checkpoint(checkpoint)
 
-    if isinstance(obj, dict):
-        for key in ("model", "module"):
-            candidate = obj.get(key)
-            if isinstance(candidate, nn.Module):
-                return candidate.cpu().eval(), False
-
-    raise RuntimeError(
-        "The checkpoint does not contain a complete nn.Module.\n"
-        "This is not necessarily an error in M3: the teammate may be saving "
-        "only a state_dict. Once the final M3 checkpoint format is known, "
-        "connect its model constructor inside load_model()."
+    print(
+        "Loaded model:",
+        type(model).__name__,
+        f"variant={meta.get('variant', 'unknown')}",
     )
+
+    return model.cpu().eval(), False
 
 
 def final_exit_logits(
