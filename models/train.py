@@ -102,29 +102,6 @@ def evaluate(model: ExitCNN, split: dict, cfg: AttrDict, device: torch.device | 
     return [core.compute_metrics(logits[e], split["y"], cfg.data.num_classes) for e in range(logits.shape[0])]
 
 
-# ---------- augmentation ----------
-
-def augment_batch(x: Tensor, mask: Tensor, team_slots: tuple[int, int] = (11, 22)) -> tuple[Tensor, Tensor]:
-    """Random pitch flips and team-slot swap, per sample. Teams swap ends at half time and the
-    camera/pitch orientation differs between matches, so a model must not key on absolute
-    orientation. x: [N, T, P, 2] in pitch units [0, 1]; absent people stay exactly zero."""
-    N = x.shape[0]
-    m = mask.unsqueeze(-1).to(x.dtype)
-    flip_x = (torch.rand(N, device=x.device) < 0.5).view(N, 1, 1, 1).to(x.dtype)
-    flip_y = (torch.rand(N, device=x.device) < 0.5).view(N, 1, 1, 1).to(x.dtype)
-    fx = torch.cat([flip_x, flip_y], dim=-1)                          # [N,1,1,2]
-    x = (x * (1 - fx) + (1 - x) * fx) * m                             # 1 - x on flipped axes
-    a, b = team_slots                                                  # slots [0,a) = team A, [a,b) = team B
-    swap = torch.rand(N, device=x.device) < 0.5
-    if swap.any():
-        xs, ms = x[swap].clone(), mask[swap].clone()
-        xs[:, :, :a], xs[:, :, a:b] = x[swap][:, :, a:b], x[swap][:, :, :a]
-        ms[:, :, :a], ms[:, :, a:b] = mask[swap][:, :, a:b], mask[swap][:, :, :a]
-        x, mask = x.clone(), mask.clone()
-        x[swap], mask[swap] = xs, ms
-    return x, mask
-
-
 # ---------- training ----------
 
 def fit(
@@ -162,8 +139,6 @@ def fit(
         t0, running, n_batches = time.time(), 0.0, 0
         for xb, mb, yb in loader:
             xb, mb, yb = xb.to(device), mb.to(device), yb.to(device)
-            if tr.get("augment_flip", False):
-                xb, mb = augment_batch(xb, mb)
             outs = model(xb, mb)
             loss, _ = exit_loss(outs, yb, ce_weight, exit_weights, kd_alpha, kd_temperature)
             opt.zero_grad(set_to_none=True)

@@ -11,9 +11,8 @@ paths:
 
 data:
   fps: 25                       # M1: verify against the raw dataset and correct if needed
-  window_seconds: 2.0           # chosen 2026-10-12: raw pitch coords sit on a ~1 m grid, so 0.5 s windows show
-                                # almost no motion (val bal_acc 0.53); 2.0 s gives ~58% action windows and 0.58+
-  stride_seconds: 0.5           # sliding: a decision every 0.5 s in the streaming scenario (windows overlap)
+  window_seconds: 0.5           # M1 may switch to 1.0 after checking class balance
+  stride_seconds: 0.5           # non-overlapping windows by default
   max_people: 23                # P in the data contract: 22 players + 1 referee slot; pad/mask the rest
   num_classes: 2                # 0 = no action, 1 = action
   event_tolerance_frames: 0     # M1: tolerance for events at window edges
@@ -33,7 +32,6 @@ model:
   dropout: 0.1
   exit_after: [1, 2, 3, 4]      # M3: trunk blocks after which an exit head sits (last must be num_blocks)
   head_pool: mean               # exit head = pool over frames + one Linear (keep heads light)
-  features: vel                 # per-person input: 'pos' (x,y) | 'pos+vel' | 'vel' (velocities only, orientation-free)
 
 train:                          # M2/M3 training loop (models/train.py)
   epochs: 30
@@ -44,7 +42,6 @@ train:                          # M2/M3 training loop (models/train.py)
   select_metric: bal_acc        # validation metric used to pick the best epoch (final exit)
   patience: 8                   # early stopping on select_metric; 0 disables
   device: auto                  # 'auto' | 'cpu' | 'cuda' | 'mps'
-  augment_flip: true            # random pitch flips + team-slot swap per sample (teams change ends at half time)
 
 early_exit:                     # M3 joint training + knowledge distillation
   exit_loss_weights: [0.25, 0.25, 0.25, 1.0]   # one per exit; final exit always carries full weight

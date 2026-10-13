@@ -23,8 +23,6 @@ class StaticCNN(ExitCNN):
         num_blocks: int = 4,
         dropout: float = 0.1,
         head_pool: str = "mean",
-        features: str = "pos",
-        fps: float = 25.0,
     ):
         super().__init__(
             max_people=max_people,
@@ -35,6 +33,4 @@ class StaticCNN(ExitCNN):
             dropout=dropout,
             exit_after=[num_blocks],
             head_pool=head_pool,
-            features=features,
-            fps=fps,
         )

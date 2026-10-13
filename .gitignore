@@ -1,6 +1,8 @@
 # data and run outputs are never committed
 data/raw/
 data/processed/*.pt
+outputs/*
+!outputs/.gitkeep
 
 # python
 __pycache__/

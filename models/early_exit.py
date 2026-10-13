@@ -19,8 +19,6 @@ class EarlyExitCNN(ExitCNN):
         dropout: float = 0.1,
         exit_after: tuple[int, ...] | list[int] = (1, 2, 3, 4),
         head_pool: str = "mean",
-        features: str = "pos",
-        fps: float = 25.0,
     ):
         if len(exit_after) < 2:
             raise ValueError("an early-exit model needs at least two exits; use StaticCNN otherwise")
@@ -33,6 +31,4 @@ class EarlyExitCNN(ExitCNN):
             dropout=dropout,
             exit_after=exit_after,
             head_pool=head_pool,
-            features=features,
-            fps=fps,
         )

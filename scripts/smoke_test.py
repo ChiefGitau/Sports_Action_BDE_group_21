@@ -21,7 +21,7 @@ def main() -> None:
     core.set_seed(cfg.seed)
 
     # 1. Mock data in the contract format.
-    paths = core.write_mock_dataset(cfg, out_dir=core.resolve_path(cfg, "processed") / "mock")   # never overwrite real splits
+    paths = core.write_mock_dataset(cfg)
     val = core.load_split(paths["val"], num_classes=cfg.data.num_classes)
     N, T, P, _ = val["X"].shape
     print(f"mock val split: X={tuple(val['X'].shape)}  class balance={core.class_balance(val['y'], cfg.data.num_classes)}")
