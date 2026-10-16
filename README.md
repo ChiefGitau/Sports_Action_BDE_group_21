@@ -6,6 +6,19 @@ This project studies efficient sports-action recognition from SoccerTrack v2 tra
 
 The final system evaluates the trade-off between predictive performance and computational cost using accuracy, balanced accuracy, F1 score, FLOPs, model size, and early-exit behavior.
 
+## Quick start: run the demo
+
+The interactive demo visualises the trained models on a real SoccerTrack clip. It needs Python 3.12 and the checkpoints already in `outputs/`; nothing is trained. From the repository root:
+
+```bash
+python -m venv .venv
+source .venv/bin/activate          # Windows PowerShell: .\.venv\Scripts\Activate.ps1
+python -m pip install -r requirements.txt
+streamlit run notebooks/streamlit_app.py
+```
+
+The app opens at `http://localhost:8501`. Pick a model, a clip and a battery scenario in the sidebar, scrub through the frames or press **Render video** for the full mp4. Details in section 3 (setup) and section 11 (runtime demo).
+
 ---
 
 ## 1. Project pipeline
@@ -116,6 +129,18 @@ python -m pytest
 ```
 
 The current project test suite contains 28 tests covering the core utilities, models, adaptive policy, and quantization pipeline.
+
+### Running the Streamlit demo
+
+`notebooks/streamlit_app.py` is an interactive visualisation of the trained models: pick a SoccerTrack clip (or upload a video), a model (full, pruned, early-exit, INT8) and a battery scenario, and it renders the same kind of clip as `scripts/render_demo_clips.py` with the exits, predictions and compute per window. It only reads the checkpoints in `outputs/` and the processed splits in `data/processed/`; nothing is trained or re-tuned.
+
+Streamlit is included in `requirements.txt`. With the virtual environment activated, run from the repository root (not from inside `notebooks/`, the app resolves its paths relative to the repo):
+
+```bash
+streamlit run notebooks/streamlit_app.py
+```
+
+It prints a local URL (normally `http://localhost:8501`) and opens it in the browser. Stop it with `Ctrl+C`. The clip picker lists every `.mp4` in `data/raw/frames/` (the clips written by `scripts/fetch_demo_frames.py`, see section 11); the included `117093_2nd_53077_240.mp4` works out of the box, and any other video can be uploaded from the sidebar.
 
 ---
 
@@ -547,6 +572,28 @@ balanced_accuracy_vs_flops.png
 f1_vs_flops.png
 balanced_accuracy_vs_size.png
 ```
+
+### Runtime demo
+
+`scripts/demo_runtime.py` shows the early-exit model working on real windows, one at a time, with the trunk really stopping at the first confident head:
+
+```bash
+python -m scripts.demo_runtime trace   --split data/processed/val.pt --start 4423 --windows 10
+python -m scripts.demo_runtime battery --split data/processed/val.pt --capacity-fraction 0.35
+```
+
+`trace` prints one row per window: the confidence at every head that ran, the exit taken, FLOPs used and single-thread CPU latency. `battery` streams a whole split while a simulated battery drains in proportion to FLOPs, switching to the 50% and 20% threshold sets as it crosses those levels. Any `.pt` in the data contract works, so one freshly processed match half is enough for a live demo. Nothing is re-tuned.
+
+Two 10 s video clips (1280x720, 25 fps) of the same 20 windows, one per model, are rendered with:
+
+```bash
+python scripts/fetch_demo_frames.py     # once: 10 s of the real camera video, fetched by HTTP range requests
+python scripts/render_demo_clips.py     # outputs/demo/clip_earlyexit.mp4, clip_fullcnn.mp4, still_*.png
+```
+
+The same visualisation is available interactively in the Streamlit app (`streamlit run notebooks/streamlit_app.py`, see section 3), where the model, clip and battery scenario can be changed and the clip rendered or scrubbed frame by frame.
+
+Each clip shows the real SoccerTrack panorama frames with the tracked player boxes, the bird's-eye view of the same tracking data, which trunk blocks ran, the exit taken, and the cumulative compute. SoccerTrack publishes one 4096x1080 panorama video per half (3.5 GB each); `fetch_demo_frames.py` seeks into it over HTTPS and stores only the needed frames (a few MB), so the whole video is never downloaded. It needs a Hugging Face login that has accepted the dataset terms. Video frame `N` is annotation image `N`, which the script verifies by also extracting the image-space boxes for the same frames.
 
 ---
 

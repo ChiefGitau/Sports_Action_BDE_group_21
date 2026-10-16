@@ -8,3 +8,7 @@ pytest
 torch-pruning>=1.5   # M2 pruned baseline (physical removal)
 ijson>=3.3
 huggingface_hub>=0.34,<1.0   # M1: 'hf download' in scripts/process_match.py
+opencv-python>=4.8      # demo clips: scripts/fetch_demo_frames.py and scripts/render_demo_clips.py
+pillow
+requests
+streamlit>=1.30         # interactive demo: streamlit run notebooks/streamlit_app.py  (from the repo root)
